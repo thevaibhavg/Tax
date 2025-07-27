@@ -1,35 +1,65 @@
 import streamlit as st
-from tax_calculator.slabs_new_regime import calculate_tax_new_regime
-from tax_calculator.utils import format_inr
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Smart Tax Estimator", layout="centered")
+st.set_page_config(page_title="Tax Estimator 2025-26", layout="wide")
 
-st.title("🧾 Smart Tax Estimator (New Regime - FY 2025-26)")
-st.caption("Built for Indian salaried, freelancers & investors")
+st.title("📊 Smart Tax Estimator (New Regime 2025–26)")
 
-st.markdown("### 💼 Income Input")
-st.markdown("Enter your estimated yearly income from each source:")
+st.markdown("Enter your income details below to estimate your total tax liability under the **new regime**.")
 
-# --- Income Inputs ---
-salary = st.slider("Annual Salary (₹)", 0, 50_00_000, step=10000, value=12_00_000)
-freelance = st.slider("Freelance/Side Income (₹)", 0, 20_00_000, step=10000, value=2_00_000)
-capital_gains = st.slider("Capital Gains (Equity/Crypto/Other)", 0, 10_00_000, step=10000, value=1_00_000)
-interest_income = st.slider("Interest from Savings/FDs (₹)", 0, 5_00_000, step=5000, value=50_000)
+# --- INCOME INPUTS ---
+st.header("💼 Income Sources")
 
-total_income = salary + freelance + capital_gains + interest_income
+col1, col2 = st.columns(2)
 
-# --- Tax Calculation ---
-total_tax, breakdown = calculate_tax_new_regime(total_income)
+with col1:
+    salary = st.slider("Salary Income (₹)", 0, 3000000, 900000, step=10000)
+    freelance = st.slider("Freelance / Side Income (₹)", 0, 2000000, 200000, step=10000)
 
-# --- Output ---
-st.markdown("### 📊 Estimated Tax Summary")
-st.metric("🪙 Total Tax Payable", format_inr(total_tax))
-st.metric("📉 Effective Tax Rate", f"{(total_tax/total_income)*100:.2f}%" if total_income > 0 else "0%")
+with col2:
+    capital_gains = st.slider("Capital Gains (₹)", 0, 2000000, 150000, step=10000)
+    interest = st.slider("Interest Income (₹)", 0, 1000000, 50000, step=5000)
 
-# --- Graph ---
-fig = go.Figure(data=[
-    go.Bar(name='Taxed Amount', x=[f"{k}"], y=[v]) for k, v in breakdown.items()
-])
-fig.update_layout(title="Slab-wise Tax Contribution", yaxis_title="₹", xaxis_title="Slab")
-st.plotly_chart(fig, use_container_width=True)
+# --- DATA AGGREGATION ---
+income_sources = {
+    "Salary": salary,
+    "Freelance": freelance,
+    "Capital Gains": capital_gains,
+    "Interest": interest,
+}
+
+total_income = sum(income_sources.values())
+
+# --- PIE CHART ---
+st.subheader("💡 Income Source Breakdown")
+
+fig, ax = plt.subplots()
+ax.pie(income_sources.values(), labels=income_sources.keys(), autopct='%1.1f%%', startangle=90)
+ax.axis('equal')
+st.pyplot(fig)
+
+# --- TAX FORECASTING (NEW REGIME) ---
+st.header("📉 Estimated Tax")
+
+def calculate_tax_new_regime(income):
+    tax = 0
+    slabs = [
+        (0, 300000, 0.0),
+        (300001, 600000, 0.05),
+        (600001, 900000, 0.10),
+        (900001, 1200000, 0.15),
+        (1200001, 1500000, 0.20),
+        (1500001, float('inf'), 0.30),
+    ]
+    for slab in slabs:
+        lower, upper, rate = slab
+        if income > lower:
+            taxed_amount = min(upper, income) - lower
+            tax += taxed_amount * rate
+    return tax
+
+tax_payable = calculate_tax_new_regime(total_income)
+
+st.success(f"✅ **Total Income:** ₹{total_income:,.0f}")
+st.error(f"💰 **Estimated Tax Payable:** ₹{tax_payable:,.0f}")
+
